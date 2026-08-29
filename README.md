@@ -1,50 +1,69 @@
-﻿# Siamese U-Net - Building Damage Assessment (xBD)
+# Building Damage Assessment - Cross-Domain Generalization
 
-## Setup
+Topic: Evaluating and improving cross-domain generalization capabilities using multi-resolution satellite imagery for building damage assessment.
+
+## 1. Overview
+This repository contains the source code and experimental results for the thesis.
+Main objectives:
+- Train a baseline model on the standard xBD dataset.
+- Measure the Domain Shift Gap when the model evaluates on different geographical regions or lower resolution satellite imagery (ida-BD, xBD-S12).
+- Experiment on a Vietnam Case Study (using Copernicus EMS data for floods) to evaluate real-world applicability in Vietnam.
+- Apply preprocessing and adaptation methods (Domain Adaptation, Fine-tuning, Super-Resolution) to improve performance.
+
+## 2. Current Experimental Results
+
+| Dataset | Evaluation Type | F1 Loc | F1 Dmg | xView2 Score |
+|---|---|---|---|---|
+| xBD (Test split) | In-distribution | 0.8509 | 0.7376 | 0.7716 |
+| ida-BD | Zero-shot | 0.6853 | 0.1717 | 0.3258 |
+| xBD-S12 | Zero-shot | (Not evaluated) | (Not evaluated) | (Not evaluated) |
+| Vietnam Case Study | Zero-shot | (Not evaluated) | (Not evaluated) | (Not evaluated) |
+
+## 3. Environment Setup
+
+Activate the Conda environment:
 ```bash
 conda activate xbd_env
 ```
 
-## Train
+Install dependencies if not already installed:
 ```bash
-cd H:\KhoaLuan
+pip install -r requirements.txt
+```
+
+## 4. Running Experiments
+
+Evaluate on xBD Test set:
+```bash
+python src/evaluate.py --config configs/baseline.yaml --checkpoint experiments/baseline_resnet34/checkpoints/best_model.pth --split test
+```
+
+Zero-shot evaluation on ida-BD:
+```bash
+python src/eval_ida.py
+```
+
+Train model from scratch:
+```bash
 python src/train.py --config configs/baseline.yaml
 ```
 
-## Monitor (mo terminal moi)
+Monitor training progress:
 ```bash
 tensorboard --logdir experiments/baseline_resnet34/logs
-# http://localhost:6006
 ```
 
-## Evaluate
+## 5. Data Structure
+- Note: The `data/` directory is not pushed to GitHub and will be synced via Google Drive.
+- `data/xBD/`: Original dataset, containing train/tier3/test splits.
+- `data/ida-BD/`: Hurricane Ida dataset.
+- `data/Vietnam-Floods/`: Satellite imagery from Copernicus EMS (to be added in Phase 3).
+
+## 6. Web Application (Demo)
+The model is integrated with a Web UI for visual classification results.
+Start the backend server:
 ```bash
-python src/evaluate.py --config configs/baseline.yaml \
-                        --checkpoint experiments/baseline_resnet34/checkpoints/best_model.pth \
-                        --split test
+cd webapp/backend
+python -m uvicorn app:app --host 0.0.0.0 --port 8000 --reload
 ```
-
-## Cau truc du lieu xBD
-```
-data/xBD/
-  train/images/  <event>_<id>_pre_disaster.png
-                 <event>_<id>_post_disaster.png
-  train/labels/  <event>_<id>_pre_disaster.json  (building polygons)
-                 <event>_<id>_post_disaster.json  (building + damage label)
-  test/...
-  hold/...
-```
-
-## Label classes
-| Value | Class        |
-|-------|-------------|
-| 0     | Background   |
-| 1     | No-damage    |
-| 2     | Minor-damage |
-| 3     | Major-damage |
-| 4     | Destroyed    |
-
-## Metrics (xView2 chuẩn)
-- F1-loc  : F1 binary building localization
-- F1-dmg  : Macro F1 damage (4 classes, only on building pixels)
-- Score   : 0.3 * F1_loc + 0.7 * F1_dmg
+Access `http://localhost:8000` to view the demo.
