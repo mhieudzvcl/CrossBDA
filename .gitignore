@@ -1,0 +1,36 @@
+# Large data and model files - store on Google Drive instead
+data/
+experiments/
+*.pth
+*.pt
+*.ckpt
+*.h5
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs and temp
+*.log
+tmp/
+temp/
