@@ -33,4 +33,4 @@ desktop.ini
 # Logs and temp
 *.log
 tmp/
-temp/
+*.zip
