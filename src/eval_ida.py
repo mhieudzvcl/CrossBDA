@@ -55,7 +55,7 @@ def evaluate():
     print(f'Device: {device}')
 
     model = SiameseUNet(encoder_name='resnet34', encoder_weights=None).to(device)
-    ckpt_path = r"H:\KhoaLuan\experiments\baseline_resnet34\checkpoints\best_model.pth"
+    import argparse; parser = argparse.ArgumentParser(); parser.add_argument("--checkpoint", type=str, required=True); parser.add_argument("--config", type=str, default=""); args = parser.parse_args(); ckpt_path = args.checkpoint
     print('Loading weights...')
     model.load_state_dict(
         torch.load(ckpt_path, map_location=device, weights_only=False)['model_state'],

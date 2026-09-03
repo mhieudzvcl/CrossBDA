@@ -15,7 +15,8 @@ Main objectives:
 | Dataset | Evaluation Type | F1 Loc | F1 Dmg | xView2 Score |
 |---|---|---|---|---|
 | xBD (Test split) | In-distribution | 0.8509 | 0.7376 | 0.7716 |
-| ida-BD | Zero-shot | 0.6853 | 0.1717 | 0.3258 |
+| ida-BD | Zero-shot (Baseline) | 0.6853 | 0.1717 | 0.3258 |
+| ida-BD | Zero-shot (FDA Aug) | 0.7424 | 0.2506 | 0.3982 |
 | xBD-S12 | Zero-shot | 0.0000 | 0.0000 | 0.0000 |
 | Vietnam Case Study | Zero-shot | (Not evaluated) | (Not evaluated) | (Not evaluated) |
 
