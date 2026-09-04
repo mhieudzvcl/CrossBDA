@@ -55,7 +55,7 @@ def evaluate():
     print(f'Device: {device}')
 
     model = SiameseUNet(encoder_name='resnet34', encoder_weights=None).to(device)
-    import argparse; parser = argparse.ArgumentParser(); parser.add_argument("--checkpoint", type=str, required=True); parser.add_argument("--config", type=str, default=""); args = parser.parse_args(); ckpt_path = args.checkpoint
+    import argparse; parser = argparse.ArgumentParser(); parser.add_argument("--checkpoint", type=str, required=True); parser.add_argument("--data_dir", type=str, default=r"H:\KhoaLuan\data\ida-BD\split\test"); parser.add_argument("--config", type=str, default=""); args = parser.parse_args(); ckpt_path = args.checkpoint
     print('Loading weights...')
     model.load_state_dict(
         torch.load(ckpt_path, map_location=device, weights_only=False)['model_state'],
@@ -63,7 +63,7 @@ def evaluate():
     )
     model.eval()
 
-    data_dir = r"H:\KhoaLuan\data\ida-BD\PRJ-3563\Project--ida-bd-pre-and-post-disaster-high-resolution-satellite-imagery-for-building-damage-assessment-from-hurricane-ida\data"
+    data_dir = args.data_dir
     dataset  = IdaDataset(data_dir)
     loader   = DataLoader(dataset, batch_size=4, shuffle=False, num_workers=2)
 
