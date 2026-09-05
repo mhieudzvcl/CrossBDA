@@ -42,6 +42,7 @@ KhoaLuan/
     ida-BD/
       images/
       masks/
+      pseudo_labels/
       split/
         train_5/
         train_10/
@@ -75,6 +76,8 @@ KhoaLuan/
       fs10_model.pth
     hybrid_results/
       hybrid_fs10_model.pth
+    pseudolabel_results/
+      pseudo_model.pth
     LapSRN_x8.pb
 ```
 
@@ -84,12 +87,13 @@ mkdir experiments\baseline_resnet34\checkpoints
 mkdir experiments\fda_results
 mkdir experiments\fewshot_results
 mkdir experiments\hybrid_results
+mkdir experiments\pseudolabel_results
 ```
 
 Or on Linux/Mac:
 ```bash
 mkdir -p experiments/baseline_resnet34/checkpoints
-mkdir -p experiments/fda_results experiments/fewshot_results experiments/hybrid_results
+mkdir -p experiments/fda_results experiments/fewshot_results experiments/hybrid_results experiments/pseudolabel_results
 ```
 
 ---
