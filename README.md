@@ -20,54 +20,6 @@ Main objectives:
 | ida-BD | Zero-shot (FDA Aug) | 0.7424 | 0.2506 | 0.3982 |
 | ida-BD (77 imgs) | Few-Shot 5% (Linear Probing) | 0.6904 | 0.1695 | 0.3258 |
 | ida-BD (77 imgs) | Few-Shot 10% (Linear Probing) | 0.6904 | 0.1707 | 0.3266 |
-| xBD-S12 | Zero-shot | 0.0000 | 0.0000 | 0.0000 |
+| xBD-S12 (100 imgs) | Zero-shot (cv2.resize) | 0.0000 | 0.0000 | 0.0000 |
+| xBD-S12 (100 imgs) | Zero-shot (LapSRN x8 Super-Res) | 0.0000 | 0.0000 | 0.0000 |
 | Vietnam Case Study | Zero-shot | (Not evaluated) | (Not evaluated) | (Not evaluated) |
-
-## 3. Environment Setup
-
-Activate the Conda environment:
-```bash
-conda activate xbd_env
-```
-
-Install dependencies if not already installed:
-```bash
-pip install -r requirements.txt
-```
-
-## 4. Running Experiments
-
-Evaluate on xBD Test set:
-```bash
-python src/evaluate.py --config configs/baseline.yaml --checkpoint experiments/baseline_resnet34/checkpoints/best_model.pth --split test
-```
-
-Zero-shot evaluation on ida-BD:
-```bash
-python src/eval_ida.py
-```
-
-Train model from scratch:
-```bash
-python src/train.py --config configs/baseline.yaml
-```
-
-Monitor training progress:
-```bash
-tensorboard --logdir experiments/baseline_resnet34/logs
-```
-
-## 5. Data Structure
-- Note: The `data/` directory is not pushed to GitHub and will be synced via Google Drive.
-- `data/xBD/`: Original dataset, containing train/tier3/test splits.
-- `data/ida-BD/`: Hurricane Ida dataset.
-- `data/Vietnam-Floods/`: Satellite imagery from Copernicus EMS (to be added in Phase 3).
-
-## 6. Web Application (Demo)
-The model is integrated with a Web UI for visual classification results.
-Start the backend server:
-```bash
-cd webapp/backend
-python -m uvicorn app:app --host 0.0.0.0 --port 8000 --reload
-```
-Access `http://localhost:8000` to view the demo.
