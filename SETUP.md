@@ -8,7 +8,7 @@ After completing all steps, your directory structure will match the original.
 ## Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/<your-org>/KhoaLuan.git
+git clone https://github.com/mhieudzvcl/CrossBDA.git
 cd KhoaLuan
 ```
 
