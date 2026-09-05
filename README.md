@@ -23,6 +23,9 @@ Main objectives:
 | ida-BD (77 imgs) | Hybrid FDA+FT 10% (Encoder Frozen) | 0.7527 | 0.2042 | 0.3687 |
 | ida-BD (77 imgs) | Pseudo-Labeling (Self-Training) | 0.2805 | 0.0009 | 0.0848 |
 | ida-BD | TENT Test-Time Adaptation (lr=1e-5) | 0.6847 | 0.1790 | 0.3307 |
+| ida-BD | AdaBN (Baseline model) | 0.4581 | 0.1300 | 0.2284 |
+| ida-BD | AdaBN (FDA Aug model) | 0.7298 | 0.2452 | 0.3906 |
+| ida-BD | TTA x4 (FDA Aug model) | 0.7491 | 0.2458 | 0.3968 |
 | xBD-S12 (100 imgs) | Zero-shot (cv2.resize) | 0.0000 | 0.0000 | 0.0000 |
 | xBD-S12 (100 imgs) | Zero-shot (LapSRN x8 Super-Res) | 0.0000 | 0.0000 | 0.0000 |
 | Vietnam Case Study | Zero-shot | (Not evaluated) | (Not evaluated) | (Not evaluated) |
