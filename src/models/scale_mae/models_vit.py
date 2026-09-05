@@ -84,7 +84,7 @@ class VisionTransformer(timm.models.vision_transformer.VisionTransformer):
             outcome = self.fc_norm(x)
         else:
             x = self.norm(x)
-            outcome = x[:, 0]
+            outcome = x
 
         return outcome
 

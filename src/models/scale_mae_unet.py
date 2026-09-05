@@ -106,7 +106,7 @@ class SiameseScaleMAE(nn.Module):
 
     def forward_single(self, x):
         B, C, H, W = x.shape
-        res_tensor = torch.full((B, 1), self.input_res, device=x.device, dtype=torch.float32)
+        res_tensor = torch.full((B,), self.input_res, device=x.device, dtype=torch.float32)
         
         if self.encoder is not None:
             x_tokens = self.encoder.forward_features(x, input_res=res_tensor)
