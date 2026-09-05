@@ -22,6 +22,7 @@ Main objectives:
 | ida-BD (77 imgs) | Few-Shot 10% (Linear Probing) | 0.6904 | 0.1707 | 0.3266 |
 | ida-BD (77 imgs) | Hybrid FDA+FT 10% (Encoder Frozen) | 0.7527 | 0.2042 | 0.3687 |
 | ida-BD (77 imgs) | Pseudo-Labeling (Self-Training) | 0.2805 | 0.0009 | 0.0848 |
+| ida-BD | TENT Test-Time Adaptation (lr=1e-5) | 0.6847 | 0.1790 | 0.3307 |
 | xBD-S12 (100 imgs) | Zero-shot (cv2.resize) | 0.0000 | 0.0000 | 0.0000 |
 | xBD-S12 (100 imgs) | Zero-shot (LapSRN x8 Super-Res) | 0.0000 | 0.0000 | 0.0000 |
 | Vietnam Case Study | Zero-shot | (Not evaluated) | (Not evaluated) | (Not evaluated) |
