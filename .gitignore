@@ -1,10 +1,12 @@
-# Large data and model files - store on Google Drive instead
+# Large data and model files - stored on Google Drive
 data/
 experiments/
 *.pth
 *.pt
 *.ckpt
 *.h5
+*.zip
+*.pb
 
 # Python
 __pycache__/
@@ -17,9 +19,8 @@ dist/
 build/
 .eggs/
 
-# Jupyter
+# Jupyter checkpoints only (not the notebooks themselves)
 .ipynb_checkpoints/
-*.ipynb
 
 # IDE
 .vscode/
@@ -33,4 +34,3 @@ desktop.ini
 # Logs and temp
 *.log
 tmp/
-*.zip
