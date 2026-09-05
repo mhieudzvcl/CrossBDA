@@ -15,7 +15,7 @@ warnings.filterwarnings('ignore', category=FutureWarning)
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.dataset import XBDDataset, get_val_transforms
-from src.model   import SiameseUNet
+from src.models.factory import create_model
 from src.metrics import MetricAccumulator, DAMAGE_CLASS_NAMES
 
 
@@ -36,10 +36,7 @@ def evaluate(cfg_path, ckpt_path, split='test'):
                           num_workers=cfg['data']['num_workers'], pin_memory=True)
 
     ckpt  = torch.load(ckpt_path, map_location=device, weights_only=False)
-    model = SiameseUNet(
-        encoder_name=cfg['model']['encoder'],
-        encoder_weights=None,
-    ).to(device)
+    model = create_model(cfg).to(device)
     model.load_state_dict(ckpt['model_state'])
     model.eval()
     print(f'Loaded from epoch {ckpt["epoch"]} (train score: {ckpt["score"]:.4f})')

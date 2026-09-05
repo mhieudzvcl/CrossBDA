@@ -13,7 +13,7 @@ from tqdm import tqdm
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.dataset import XBDDataset, get_train_transforms, get_val_transforms
-from src.model   import SiameseUNet
+from src.models.factory import create_model
 from src.losses  import CombinedLoss
 from src.metrics import MetricAccumulator, AverageMeter
 
@@ -131,10 +131,7 @@ def main(config_path):
 
     print(f'Train: {len(train_ds)} | Val: {len(val_ds)} samples')
 
-    model = SiameseUNet(
-        encoder_name=cfg['model']['encoder'],
-        encoder_weights=cfg['model']['encoder_weights'],
-    ).to(device)
+    model = create_model(cfg).to(device)
     n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f'Params: {n_params/1e6:.1f}M')
 
