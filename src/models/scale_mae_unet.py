@@ -75,13 +75,13 @@ class SiameseScaleMAE(nn.Module):
         
         try:
             if vit_model == "vit_base_patch16":
-                self.encoder = models_vit.vit_base_patch16(num_classes=0, drop_path_rate=0.1)
+                self.encoder = models_vit.vit_base_patch16(num_classes=0, drop_path_rate=0.1, img_size=512)
                 embed_dim = 768
             else:
-                self.encoder = models_vit.vit_large_patch16(num_classes=0, drop_path_rate=0.1)
+                self.encoder = models_vit.vit_large_patch16(num_classes=0, drop_path_rate=0.1, img_size=512)
                 embed_dim = 1024
         except Exception as e:
-            print(f"Failed to load Scale-MAE: {e}")
+            import traceback; traceback.print_exc()
             self.encoder = None
             embed_dim = 768
             
