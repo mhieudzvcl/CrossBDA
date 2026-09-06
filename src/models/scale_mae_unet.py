@@ -84,7 +84,7 @@ class SiameseScaleMAE(nn.Module):
             if pretrained_path == "imagenet" or pretrained_path == "scalemae-hf":
                 print("Loading TRUE Scale-MAE weights (FMoW pre-trained) via timm...")
                 import timm
-                timm_model = timm.create_model("hf_hub:isaaccorley/vit_base_patch16_224_fmow_rgb_scalemae", pretrained=True)
+                timm_model = timm.create_model("hf_hub:isaaccorley/vit_large_patch16_224_fmow_rgb_scalemae", pretrained=True)
                 state_dict = timm_model.state_dict()
                 if "pos_embed" in state_dict:
                     del state_dict["pos_embed"]

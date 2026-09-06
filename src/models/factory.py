@@ -17,7 +17,7 @@ def create_model(config):
         print("Using Scale-MAE backbone")
         return SiameseScaleMAE(
             num_damage_classes=5,
-            vit_model="vit_base_patch16",
+            vit_model="vit_large_patch16",
             input_res=1.0, # Will be updated later via dataset/config if needed
             pretrained_path=config.get('model', {}).get('encoder_weights', None)
         )
