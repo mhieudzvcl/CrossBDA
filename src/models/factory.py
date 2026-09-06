@@ -18,7 +18,8 @@ def create_model(config):
         return SiameseScaleMAE(
             num_damage_classes=5,
             vit_model="vit_base_patch16",
-            input_res=1.0 # Will be updated later via dataset/config if needed
+            input_res=1.0, # Will be updated later via dataset/config if needed
+            pretrained_path=config.get('model', {}).get('encoder_weights', None)
         )
     else:
         print(f"Using {model_name} backbone (SiameseUNet)")

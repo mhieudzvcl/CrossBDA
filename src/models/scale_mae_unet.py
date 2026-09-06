@@ -69,7 +69,7 @@ class ViTAdapter(nn.Module):
 
 
 class SiameseScaleMAE(nn.Module):
-    def __init__(self, num_damage_classes=5, vit_model="vit_base_patch16", input_res=1.0):
+    def __init__(self, num_damage_classes=5, vit_model="vit_base_patch16", input_res=1.0, pretrained_path=None):
         super().__init__()
         self.input_res = input_res
         
@@ -80,6 +80,14 @@ class SiameseScaleMAE(nn.Module):
             else:
                 self.encoder = models_vit.vit_large_patch16(num_classes=0, drop_path_rate=0.1, img_size=512)
                 embed_dim = 1024
+
+            if pretrained_path and pretrained_path not in ["imagenet", "None"]:
+                print(f"Loading Scale-MAE weights from {pretrained_path}")
+                checkpoint = torch.load(pretrained_path, map_location="cpu")
+                state_dict = checkpoint.get("model", checkpoint)
+                # Load with strict=False to ignore pos_embed mismatches due to different resolutions
+                msg = self.encoder.load_state_dict(state_dict, strict=False)
+                print(f"Loaded with msg: {msg}")
         except Exception as e:
             import traceback; traceback.print_exc()
             self.encoder = None
