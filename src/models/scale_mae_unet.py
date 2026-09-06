@@ -89,7 +89,7 @@ class SiameseScaleMAE(nn.Module):
                     url = "https://github.com/bair-climate-initiative/scale-mae/releases/download/base-800/scalemae-vitlarge-800.pth"
                     urllib.request.urlretrieve(url, local_path)
                     print("Download complete!")
-                checkpoint = torch.load(local_path, map_location="cpu")
+                checkpoint = torch.load(local_path, map_location="cpu", weights_only=False)
                 state_dict = checkpoint.get("model", checkpoint)
                 if "pos_embed" in state_dict:
                     del state_dict["pos_embed"]
