@@ -81,7 +81,16 @@ class SiameseScaleMAE(nn.Module):
                 self.encoder = models_vit.vit_large_patch16(num_classes=0, drop_path_rate=0.1, img_size=512)
                 embed_dim = 1024
 
-            if pretrained_path and pretrained_path not in ["imagenet", "None"]:
+            if pretrained_path == "imagenet":
+                print("Loading ImageNet weights via timm...")
+                import timm
+                timm_model = timm.create_model("vit_base_patch16_224", pretrained=True)
+                state_dict = timm_model.state_dict()
+                if "pos_embed" in state_dict:
+                    del state_dict["pos_embed"]
+                msg = self.encoder.load_state_dict(state_dict, strict=False)
+                print(f"Loaded ImageNet with msg: {msg}")
+            elif pretrained_path and pretrained_path not in ["imagenet", "None"]:
                 print(f"Loading Scale-MAE weights from {pretrained_path}")
                 checkpoint = torch.load(pretrained_path, map_location="cpu")
                 state_dict = checkpoint.get("model", checkpoint)
