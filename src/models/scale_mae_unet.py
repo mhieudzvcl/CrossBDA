@@ -81,15 +81,20 @@ class SiameseScaleMAE(nn.Module):
                 self.encoder = models_vit.vit_large_patch16(num_classes=0, drop_path_rate=0.1, img_size=512)
                 embed_dim = 1024
 
-            if pretrained_path == "imagenet" or pretrained_path == "scalemae-hf":
-                print("Loading TRUE Scale-MAE weights (FMoW pre-trained) via timm...")
-                import timm
-                timm_model = timm.create_model("hf_hub:isaaccorley/vit_large_patch16_224_fmow_rgb_scalemae", pretrained=True)
-                state_dict = timm_model.state_dict()
+            if pretrained_path in ["imagenet", "scalemae"]:
+                import os, urllib.request
+                local_path = "/tmp/scalemae-vitlarge-800.pth"
+                if not os.path.exists(local_path):
+                    print("Downloading TRUE Scale-MAE weights (FMoW pre-trained)...")
+                    url = "https://github.com/bair-climate-initiative/scale-mae/releases/download/base-800/scalemae-vitlarge-800.pth"
+                    urllib.request.urlretrieve(url, local_path)
+                    print("Download complete!")
+                checkpoint = torch.load(local_path, map_location="cpu")
+                state_dict = checkpoint.get("model", checkpoint)
                 if "pos_embed" in state_dict:
                     del state_dict["pos_embed"]
                 msg = self.encoder.load_state_dict(state_dict, strict=False)
-                print(f"Loaded ImageNet with msg: {msg}")
+                print(f"Loaded Scale-MAE FMoW weights with msg: {msg}")
             elif pretrained_path and pretrained_path not in ["imagenet", "None"]:
                 print(f"Loading Scale-MAE weights from {pretrained_path}")
                 checkpoint = torch.load(pretrained_path, map_location="cpu")
