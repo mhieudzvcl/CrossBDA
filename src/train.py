@@ -132,6 +132,9 @@ def main(config_path):
     print(f'Train: {len(train_ds)} | Val: {len(val_ds)} samples')
 
     model = create_model(cfg).to(device)
+    if torch.cuda.device_count() > 1:
+        print(f'Using {torch.cuda.device_count()} GPUs with DataParallel!')
+        model = torch.nn.DataParallel(model)
     n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f'Params: {n_params/1e6:.1f}M')
 
