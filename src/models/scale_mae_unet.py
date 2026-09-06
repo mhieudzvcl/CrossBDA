@@ -95,6 +95,11 @@ class SiameseScaleMAE(nn.Module):
                     del state_dict["pos_embed"]
                 msg = self.encoder.load_state_dict(state_dict, strict=False)
                 print(f"Loaded Scale-MAE FMoW weights with msg: {msg}")
+                
+                # Enable gradient checkpointing to avoid CUDA Out of Memory on Tesla T4
+                if hasattr(self.encoder, 'set_grad_checkpointing'):
+                    self.encoder.set_grad_checkpointing(enable=True)
+                    print("Enabled gradient checkpointing for ViT-Large to save VRAM!")
             elif pretrained_path and pretrained_path not in ["imagenet", "None"]:
                 print(f"Loading Scale-MAE weights from {pretrained_path}")
                 checkpoint = torch.load(pretrained_path, map_location="cpu")
