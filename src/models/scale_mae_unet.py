@@ -81,10 +81,10 @@ class SiameseScaleMAE(nn.Module):
                 self.encoder = models_vit.vit_large_patch16(num_classes=0, drop_path_rate=0.1, img_size=512)
                 embed_dim = 1024
 
-            if pretrained_path == "imagenet":
-                print("Loading ImageNet weights via timm...")
+            if pretrained_path == "imagenet" or pretrained_path == "scalemae-hf":
+                print("Loading TRUE Scale-MAE weights (FMoW pre-trained) via timm...")
                 import timm
-                timm_model = timm.create_model("vit_base_patch16_224", pretrained=True)
+                timm_model = timm.create_model("hf_hub:isaaccorley/vit_base_patch16_224_fmow_rgb_scalemae", pretrained=True)
                 state_dict = timm_model.state_dict()
                 if "pos_embed" in state_dict:
                     del state_dict["pos_embed"]
