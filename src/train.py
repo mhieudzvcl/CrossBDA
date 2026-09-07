@@ -156,35 +156,7 @@ def main(config_path):
     best_score = 0.0
     epochs = cfg['training']['epochs']
 
-    import os
-    
-    # Xử lý vụ Kaggle tự động giải nén file .pth thành thư mục
-    extracted_dir = '/kaggle/input/scalemae-epoch-25/best_model'
-    checkpoint_path = '/kaggle/working/best_model_fixed.pth'
-    
-    if os.path.exists(extracted_dir) and not os.path.exists(checkpoint_path):
-        print("[*] Phát hiện thư mục bị Kaggle giải nén, đang đóng gói lại thành file .pth...")
-        os.system(f"cd {extracted_dir} && zip -q -r {checkpoint_path} *")
-        
-    if os.path.exists(checkpoint_path):
-        print(f"[*] Đang nạp lại checkpoint từ {checkpoint_path}...")
-        checkpoint = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
-        
-        # Load weights cho model
-        if 'model_state' in checkpoint:
-            model.load_state_dict(checkpoint['model_state'])
-        elif 'model_state_dict' in checkpoint:
-            model.load_state_dict(checkpoint['model_state_dict'])
-            
-        # Load optimizer
-        if 'optim_state' in checkpoint:
-            optimizer.load_state_dict(checkpoint['optim_state'])
-        elif 'optimizer_state_dict' in checkpoint:
-            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-            
-        print("[*] Nạp thành công! Chạy nốt chặng cuối...")
-
-    for epoch in range(21, epochs + 1):
+    for epoch in range(1, epochs + 1):
         train_loss = train_one_epoch(model, train_loader, optimizer, criterion, scaler, device, epoch)
         val_loss, metrics = validate(model, val_loader, criterion, device, epoch)
         scheduler.step()
@@ -233,6 +205,7 @@ if __name__ == '__main__':
     parser.add_argument('--config', default='configs/baseline.yaml')
     args = parser.parse_args()
     main(args.config)
+
 
 
 
