@@ -156,7 +156,7 @@ def main(config_path):
     best_score = 0.0
     epochs = cfg['training']['epochs']
 
-        import os
+    import os
     
     # Xử lý vụ Kaggle tự động giải nén file .pth thành thư mục
     extracted_dir = '/kaggle/input/scalemae-epoch-25/best_model'
@@ -233,6 +233,7 @@ if __name__ == '__main__':
     parser.add_argument('--config', default='configs/baseline.yaml')
     args = parser.parse_args()
     main(args.config)
+
 
 
 
