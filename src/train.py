@@ -1,4 +1,4 @@
-"""
+﻿"""
 train.py - Training loop for Siamese U-Net (xBD)
 """
 import os, sys, yaml, argparse, random
@@ -156,7 +156,27 @@ def main(config_path):
     best_score = 0.0
     epochs = cfg['training']['epochs']
 
-    for epoch in range(1, epochs + 1):
+        import os
+    checkpoint_path = '/kaggle/input/scalemae-epoch-25/epoch_025.pth'
+    if os.path.exists(checkpoint_path):
+        print(f"[*] Đang nạp lại checkpoint từ {checkpoint_path}...")
+        checkpoint = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
+        
+        # Load weights cho model
+        if 'model_state' in checkpoint:
+            model.load_state_dict(checkpoint['model_state'])
+        elif 'model_state_dict' in checkpoint:
+            model.load_state_dict(checkpoint['model_state_dict'])
+            
+        # Load optimizer
+        if 'optim_state' in checkpoint:
+            optimizer.load_state_dict(checkpoint['optim_state'])
+        elif 'optimizer_state_dict' in checkpoint:
+            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            
+        print("[*] Nạp thành công! Chạy nốt chặng cuối...")
+
+    for epoch in range(26, epochs + 1):
         train_loss = train_one_epoch(model, train_loader, optimizer, criterion, scaler, device, epoch)
         val_loss, metrics = validate(model, val_loader, criterion, device, epoch)
         scheduler.step()
@@ -188,8 +208,8 @@ def main(config_path):
             'config':      cfg,
         }
 
-        if epoch % cfg['training'].get('save_every', 5) == 0:
-            torch.save(ckpt, ckpt_dir / f'epoch_{epoch:03d}.pth')
+        # if epoch % cfg['training'].get('save_every', 5) == 0:
+        #     torch.save(ckpt, ckpt_dir / f'epoch_{epoch:03d}.pth')
         if score > best_score:
             best_score = score
             torch.save(ckpt, ckpt_dir / 'best_model.pth')
@@ -205,3 +225,4 @@ if __name__ == '__main__':
     parser.add_argument('--config', default='configs/baseline.yaml')
     args = parser.parse_args()
     main(args.config)
+
