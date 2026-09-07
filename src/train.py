@@ -157,7 +157,7 @@ def main(config_path):
     epochs = cfg['training']['epochs']
 
         import os
-    checkpoint_path = '/kaggle/input/scalemae-epoch-25/epoch_025.pth'
+    checkpoint_path = '/kaggle/input/scalemae-epoch-25/best_model.pth'
     if os.path.exists(checkpoint_path):
         print(f"[*] Đang nạp lại checkpoint từ {checkpoint_path}...")
         checkpoint = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
@@ -176,7 +176,7 @@ def main(config_path):
             
         print("[*] Nạp thành công! Chạy nốt chặng cuối...")
 
-    for epoch in range(26, epochs + 1):
+    for epoch in range(21, epochs + 1):
         train_loss = train_one_epoch(model, train_loader, optimizer, criterion, scaler, device, epoch)
         val_loss, metrics = validate(model, val_loader, criterion, device, epoch)
         scheduler.step()
@@ -225,4 +225,5 @@ if __name__ == '__main__':
     parser.add_argument('--config', default='configs/baseline.yaml')
     args = parser.parse_args()
     main(args.config)
+
 
