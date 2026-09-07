@@ -157,7 +157,15 @@ def main(config_path):
     epochs = cfg['training']['epochs']
 
         import os
-    checkpoint_path = '/kaggle/input/scalemae-epoch-25/best_model.pth'
+    
+    # Xử lý vụ Kaggle tự động giải nén file .pth thành thư mục
+    extracted_dir = '/kaggle/input/scalemae-epoch-25/best_model'
+    checkpoint_path = '/kaggle/working/best_model_fixed.pth'
+    
+    if os.path.exists(extracted_dir) and not os.path.exists(checkpoint_path):
+        print("[*] Phát hiện thư mục bị Kaggle giải nén, đang đóng gói lại thành file .pth...")
+        os.system(f"cd {extracted_dir} && zip -q -r {checkpoint_path} *")
+        
     if os.path.exists(checkpoint_path):
         print(f"[*] Đang nạp lại checkpoint từ {checkpoint_path}...")
         checkpoint = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
@@ -225,5 +233,6 @@ if __name__ == '__main__':
     parser.add_argument('--config', default='configs/baseline.yaml')
     args = parser.parse_args()
     main(args.config)
+
 
 
