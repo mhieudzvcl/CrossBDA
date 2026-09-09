@@ -1,4 +1,4 @@
-"""
+﻿"""
 evaluate.py - Evaluate trained model on xBD test or holdout split
 Usage:
     python src/evaluate.py --checkpoint experiments/baseline_resnet34/checkpoints/best_model.pth --split test
@@ -36,8 +36,11 @@ def evaluate(cfg_path, ckpt_path, split='test'):
                           num_workers=cfg['data']['num_workers'], pin_memory=True)
 
     ckpt  = torch.load(ckpt_path, map_location=device, weights_only=False)
+    if 'model' in cfg and 'encoder_weights' in cfg['model']:
+        cfg['model']['encoder_weights'] = None
     model = create_model(cfg).to(device)
-    model.load_state_dict(ckpt['model_state'])
+    state_dict = {k.replace('module.', ''): v for k, v in ckpt['model_state'].items()}
+    model.load_state_dict(state_dict)
     model.eval()
     print(f'Loaded from epoch {ckpt["epoch"]} (train score: {ckpt["score"]:.4f})')
 
@@ -71,3 +74,4 @@ if __name__ == '__main__':
     parser.add_argument('--split',      default='test', choices=['test', 'hold'])
     args = parser.parse_args()
     evaluate(args.config, args.checkpoint, args.split)
+

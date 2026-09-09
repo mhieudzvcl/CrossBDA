@@ -116,6 +116,7 @@ $$Score_{xView2} = 0.3 \times F1_{Loc} + 0.7 \times F1_{Dmg}$$
 | **xBD (Test split)** | In-distribution | Baseline (ResNet34) | 0.8509 | **0.7376** | **0.7716** |
 | **xBD (Test split)** | In-distribution | Scale-MAE (ViT-Large) | **0.8660** | 0.7286 | 0.7698 |
 | **ida-BD** | Zero-shot (Baseline) | Pure Zero-Shot OOD | 0.6853 | 0.1717 | 0.3258 |
+| **ida-BD** | **Zero-shot (Scale-MAE ViT-Large)** | **Foundation Model Zero-Shot OOD** | **0.7617** | **0.2181** | **0.3812** |
 | ida-BD | Zero-shot (FDA Inference) | Test-Time FDA Preprocessing | 0.6647 | 0.1598 | 0.3112 |
 | ida-BD | Zero-shot (FDA Aug) | UDA - Unsupervised Domain Adaptation | 0.7424 | **0.2506** | **0.3982** |
 | ida-BD (77 imgs) | Few-Shot 5% (Linear Probing) | Few-Shot Supervised Adaptation | 0.6904 | 0.1695 | 0.3258 |
@@ -189,4 +190,5 @@ cd webapp/backend
 python -m uvicorn app:app --host 0.0.0.0 --port 8000 --reload
 ```
 Access `http://localhost:8000` to view the demo.
+
 

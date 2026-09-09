@@ -1,17 +1,18 @@
-"""
+﻿"""
 eval_ida.py - Zero-shot evaluation of the xBD-trained model on ida-BD dataset
 """
-import os, sys, glob, warnings
+import os, sys, glob, yaml, warnings
 import numpy as np
 import torch
 from PIL import Image
+from pathlib import Path
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 
 warnings.filterwarnings('ignore', category=FutureWarning)
 
 sys.path.insert(0, r"H:\KhoaLuan")
-from src.model   import SiameseUNet
+from src.models.factory import create_model
 from src.metrics import MetricAccumulator, DAMAGE_CLASS_NAMES
 
 
@@ -51,22 +52,39 @@ class IdaDataset(Dataset):
 
 
 def evaluate():
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--checkpoint", type=str, required=True)
+    parser.add_argument("--data_dir",   type=str, default=r"H:\KhoaLuan\data\ida-BD\split\test")
+    parser.add_argument("--config",     type=str, default="configs/baseline.yaml")
+    args = parser.parse_args()
+
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Device: {device}')
 
-    model = SiameseUNet(encoder_name='resnet34', encoder_weights=None).to(device)
-    import argparse; parser = argparse.ArgumentParser(); parser.add_argument("--checkpoint", type=str, required=True); parser.add_argument("--data_dir", type=str, default=r"H:\KhoaLuan\data\ida-BD\split\test"); parser.add_argument("--config", type=str, default=""); args = parser.parse_args(); ckpt_path = args.checkpoint
+    # Load config and create correct model architecture
+    with open(args.config) as f:
+        cfg = yaml.safe_load(f)
+
+    # Disable downloading pretrained weights (we load from checkpoint)
+    if 'model' in cfg and 'encoder_weights' in cfg['model']:
+        cfg['model']['encoder_weights'] = None
+
+    model = create_model(cfg).to(device)
+
     print('Loading weights...')
-    model.load_state_dict(
-        torch.load(ckpt_path, map_location=device, weights_only=False)['model_state'],
-        strict=False
-    )
+    ckpt = torch.load(args.checkpoint, map_location=device, weights_only=False)
+    state_dict = ckpt['model_state'] if 'model_state' in ckpt else ckpt
+    # Strip 'module.' prefix from DataParallel checkpoints
+    state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
+    model.load_state_dict(state_dict)
     model.eval()
 
-    data_dir = args.data_dir
-    dataset  = IdaDataset(data_dir)
-    loader   = DataLoader(dataset, batch_size=4, shuffle=False, num_workers=2)
+    if 'epoch' in ckpt:
+        print(f'Loaded from epoch {ckpt["epoch"]} (train score: {ckpt.get("score", 0):.4f})')
 
+    dataset = IdaDataset(args.data_dir)
+    loader  = DataLoader(dataset, batch_size=4, shuffle=False, num_workers=2)
     print(f'Total images: {len(dataset)}')
 
     accumulator = MetricAccumulator()
