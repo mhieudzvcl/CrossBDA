@@ -1,12 +1,7 @@
 """
-eval_adabn.py - Adaptive Batch Normalization for Test-Time Domain Adaptation
-Li et al., "Revisiting Batch Normalization For Practical Domain Adaptation", 2016.
-
-Fix from v1: use momentum=None (cumulative moving average) so that after 1 pass
-over all test images, running_mean/var = TRUE mean/var of target domain.
-momentum=0.1 (default) would only capture 10% of the target statistics per pass.
+eval_adabn.py - Evaluate with AdaBN on ida-BD
 """
-import os, sys, glob, warnings
+import os, sys, glob, yaml, warnings
 import numpy as np
 import torch
 from PIL import Image
@@ -21,9 +16,8 @@ SRC  = os.path.join(ROOT, "src")
 sys.path.insert(0, ROOT)
 sys.path.insert(0, SRC)
 
-from model   import SiameseUNet
-from metrics import MetricAccumulator, DAMAGE_CLASS_NAMES
-
+from src.models.factory import create_model
+from src.metrics import MetricAccumulator, DAMAGE_CLASS_NAMES
 
 class IdaDataset(Dataset):
     def __init__(self, data_dir):
@@ -56,72 +50,84 @@ class IdaDataset(Dataset):
         post_t = torch.from_numpy(post_arr.transpose(2, 0, 1)).float()
         loc_t  = torch.from_numpy((mask_arr > 0).astype(np.int64)).long()
         dmg_t  = torch.from_numpy(mask_arr.astype(np.int64)).long()
+
         return pre_t, post_t, loc_t, dmg_t
 
-
-def prepare_bn_for_adaptation(model):
-    """
-    Set BN layers to train mode with momentum=None (cumulative moving average).
-    This ensures 1 full pass gives the TRUE mean/var of target domain,
-    not just 10% (which default momentum=0.1 would give).
-    """
-    model.requires_grad_(False)
-    for m in model.modules():
-        if isinstance(m, torch.nn.BatchNorm2d):
-            m.train()
-            m.reset_running_stats()
-            m.momentum = None   # KEY FIX: cumulative moving average
-
-
-def adapt_bn(model, loader, device):
-    """
-    Forward pass over ALL test images to accumulate stable BN statistics.
-    No labels, no backprop needed.
-    """
-    prepare_bn_for_adaptation(model)
-    print(f"AdaBN: calibrating BN stats over {len(loader.dataset)} images...")
-    with torch.no_grad():
-        for pre, post, _, _ in tqdm(loader, desc="  BN Calibration"):
-            pre, post = pre.to(device), post.to(device)
-            model(pre, post)
-    model.eval()
-    return model
-
-
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--checkpoint", type=str, required=True)
-    parser.add_argument("--data_dir",   type=str, default=r"H:\KhoaLuan\data\ida-BD\split\test")
+    parser.add_argument("--checkpoint", type=str, required=True, help="Path to .pth file")
+    parser.add_argument("--config", type=str, required=True, help="Path to .yaml config")
+    parser.add_argument("--data_dir", type=str, default=r"H:\KhoaLuan\data\ida-BD\split\test")
     args = parser.parse_args()
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Device: {device}")
-
-    model = SiameseUNet(encoder_name="resnet34", encoder_weights=None).to(device)
-    ckpt  = torch.load(args.checkpoint, map_location=device, weights_only=False)
-    model.load_state_dict(ckpt["model_state"], strict=False)
-    print("Weights loaded.")
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f"Using device: {device}")
 
     dataset = IdaDataset(args.data_dir)
-    loader  = DataLoader(dataset, batch_size=8, shuffle=False, num_workers=0)
+    loader  = DataLoader(dataset, batch_size=4, shuffle=False, num_workers=2)
     print(f"Total images: {len(dataset)}")
 
-    # Phase 1: BN Adaptation (1 pass, cumulative moving average)
-    model = adapt_bn(model, loader, device)
+    with open(args.config) as f:
+        cfg = yaml.safe_load(f)
+    if 'model' in cfg and 'encoder_weights' in cfg['model']:
+        cfg['model']['encoder_weights'] = None
 
-    # Phase 2: Evaluation with adapted stats
-    accumulator = MetricAccumulator()
+    print(f"Creating model from {args.config}...")
+    model = create_model(cfg).to(device)
+
+    print(f"Loading weights from {args.checkpoint}...")
+    ckpt = torch.load(args.checkpoint, map_location=device, weights_only=False)
+    state_dict = ckpt['model_state'] if 'model_state' in ckpt else ckpt
+    state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
+    model.load_state_dict(state_dict)
+
+    # ==========================
+    # PHASE 1: AdaBN Update
+    # ==========================
+    print("\n[AdaBN] Phase 1: Updating Batch Normalization statistics...")
+    model.train() # Set train mode so BN layers compute statistics of the test set
+    
+    # Optional: Reset running stats or set momentum to None for pure CMA
+    for m in model.modules():
+        if isinstance(m, torch.nn.modules.batchnorm._BatchNorm):
+            m.reset_running_stats()
+            m.momentum = None
+            
     with torch.no_grad():
-        for pre, post, loc_true, dmg_true in tqdm(loader, desc="Evaluating AdaBN"):
-            pre, post = pre.to(device), post.to(device)
-            loc_true, dmg_true = loc_true.to(device), dmg_true.to(device)
-            loc_pred, dmg_pred = model(pre, post)
-            accumulator.update(loc_pred, dmg_pred, loc_true, dmg_true)
+        for pre_imgs, post_imgs, _, _ in tqdm(loader, desc="AdaBN Forward Pass"):
+            pre_imgs = pre_imgs.to(device)
+            post_imgs = post_imgs.to(device)
+            with torch.amp.autocast(device.type):
+                _ = model(pre_imgs, post_imgs)
 
-    results = accumulator.compute()
-    print(f"\nEVALUATION RESULTS ON ida-BD (AdaBN - momentum=None)")
-    print(f"xView2 Score     : {results['xview2_score']:.4f}")
-    print(f"F1 Localization  : {results['f1_loc']:.4f}")
-    print(f"F1 Damage (macro): {results['f1_dmg_macro']:.4f}")
-    for name in DAMAGE_CLASS_NAMES[1:]:
-        print(f"F1 {name:<16}: {results.get('f1_' + name, 0):.4f}")
+    # ==========================
+    # PHASE 2: Evaluation
+    # ==========================
+    print("\n[AdaBN] Phase 2: Evaluating with updated statistics...")
+    model.eval() # Back to eval mode to use the newly collected statistics
+    accumulator = MetricAccumulator()
+
+    with torch.no_grad():
+        for pre_imgs, post_imgs, loc_targets, dmg_targets in tqdm(loader, desc="Evaluating AdaBN"):
+            pre_imgs = pre_imgs.to(device)
+            post_imgs = post_imgs.to(device)
+            loc_targets = loc_targets.to(device)
+            dmg_targets = dmg_targets.to(device)
+
+            with torch.amp.autocast(device.type):
+                out_loc, out_dmg = model(pre_imgs, post_imgs)
+
+            accumulator.update(out_loc, out_dmg, loc_targets, dmg_targets)
+
+    metrics = accumulator.compute()
+    
+    print("\nEVALUATION RESULTS ON ida-BD (AdaBN)")
+    print(f"xView2 Score     : {metrics['xview2_score']:.4f}")
+    print(f"F1 Localization  : {metrics['f1_loc']:.4f}")
+    print(f"F1 Damage (macro): {metrics['f1_dmg_macro']:.4f}")
+    for k in [1, 2, 3, 4]:
+        class_name = DAMAGE_CLASS_NAMES[k]
+        print(f"  F1 {class_name:<14}: {metrics[f'f1_{class_name}']:.4f}")
+
+if __name__ == "__main__":
+    main()

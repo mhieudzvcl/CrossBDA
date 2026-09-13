@@ -1,5 +1,5 @@
 """
-eval_s12.py - Zero-shot evaluation of the xBD-trained model on S12 dataset (Sentinel-2 TCI)
+eval_s12_tent.py - Test-Time Entropy Minimization on S12 Dataset
 """
 import os, sys, glob, warnings, yaml
 import numpy as np
@@ -9,14 +9,14 @@ import tifffile
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
+import argparse
 
-warnings.filterwarnings('ignore', category=FutureWarning)
-warnings.filterwarnings('ignore', category=UserWarning)
+warnings.filterwarnings('ignore')
 
-# Import create_model thay vi hardcode SiameseUNet
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from src.models.factory import create_model
 from src.metrics import MetricAccumulator, DAMAGE_CLASS_NAMES
+from src.tent import TENT
 
 class S12Dataset(Dataset):
     def __init__(self, s12_dir, xbd_dir):
@@ -32,8 +32,6 @@ class S12Dataset(Dataset):
                     if f.endswith('_post_disaster_target.png'):
                         self.mask_lookup[f] = os.path.join(mask_dir, f)
                         
-        print(f"Found {len(self.pre_images)} Sentinel-2 image pairs.")
-        
         self.valid_pairs = []
         for pre in self.pre_images:
             base_name = os.path.basename(pre).replace("_pre_disaster_s2_tci.tif", "")
@@ -54,31 +52,25 @@ class S12Dataset(Dataset):
     def __getitem__(self, idx):
         pair = self.valid_pairs[idx]
         
-        # Doc TIF, resize len 1024x1024
         pre_img = tifffile.imread(pair['pre'])
         post_img = tifffile.imread(pair['post'])
         pre_img_1024 = cv2.resize(pre_img, (1024, 1024), interpolation=cv2.INTER_LINEAR)
         post_img_1024 = cv2.resize(post_img, (1024, 1024), interpolation=cv2.INTER_LINEAR)
         
-        # Chuyen ve Tensor, chuan hoa [0, 1]
         pre_tensor = torch.from_numpy(pre_img_1024.transpose(2, 0, 1)).float() / 255.0
         post_tensor = torch.from_numpy(post_img_1024.transpose(2, 0, 1)).float() / 255.0
         
-        # Normalize bang ImageNet (tuong tu nhu Tap Train/xBD/Ida) de model hieu dung
         mean = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1)
         std = torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1)
         pre_tensor = (pre_tensor - mean) / std
         post_tensor = (post_tensor - mean) / std
         
-        # Load mask goc tu xBD (1024x1024)
         mask = Image.open(pair['mask'])
-        mask = np.array(mask, dtype=np.int64)
-        mask_tensor = torch.from_numpy(mask)
+        mask_tensor = torch.from_numpy(np.array(mask, dtype=np.int64))
         
         return pre_tensor, post_tensor, mask_tensor
 
-def evaluate():
-    import argparse
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--checkpoint", type=str, required=True, help="Duong dan den file .pth")
     parser.add_argument("--config", type=str, required=True, help="Duong dan den file .yaml")
@@ -89,18 +81,16 @@ def evaluate():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using device: {device}")
 
-    # Fallback path if needed
     if not os.path.exists(args.data_dir_s12):
         args.data_dir_s12 = r"H:\KhoaLuan\scratch\xbd_s12\s2_tci"
 
     dataset = S12Dataset(s12_dir=args.data_dir_s12, xbd_dir=args.data_dir_xbd)
     if len(dataset) == 0:
-        print("Loi: Khong tim thay du lieu. Kiem tra duong dan data_dir_s12 va data_dir_xbd.")
+        print("Loi: Khong tim thay du lieu S12.")
         return
         
-    loader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=2) # batch_size=1 de tranh OOM VRAM voi Scale-MAE
+    loader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=2)
 
-    # Tao model dua tren config (ScaleMAE, Resnet...)
     with open(args.config) as f:
         cfg = yaml.safe_load(f)
     if 'model' in cfg and 'encoder_weights' in cfg['model']:
@@ -108,40 +98,43 @@ def evaluate():
 
     print(f"Creating model from {args.config}...")
     model = create_model(cfg).to(device)
-
-    print(f"Loading weights from {args.checkpoint}...")
     ckpt = torch.load(args.checkpoint, map_location=device, weights_only=False)
     state_dict = ckpt['model_state'] if 'model_state' in ckpt else ckpt
     state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
     model.load_state_dict(state_dict)
-    model.eval()
 
+    # Wrap model with TENT (This handles setting model.train() and Requires_grad)
+    print("\n[TENT] Wrapping model with Test-Time Entropy Minimization...")
+    tent_model = TENT(model, lr=1e-3, steps=1)
+    
     accumulator = MetricAccumulator()
 
-    with torch.no_grad():
-        for pre_imgs, post_imgs, targets in tqdm(loader, desc="Evaluating xBD-S12"):
-            pre_imgs = pre_imgs.to(device)
-            post_imgs = post_imgs.to(device)
-            targets = targets.to(device)
+    print("\n[TENT] Evaluating with online adaptation...")
+    for pre_imgs, post_imgs, targets in tqdm(loader, desc="Evaluating TENT"):
+        pre_imgs = pre_imgs.to(device)
+        post_imgs = post_imgs.to(device)
+        targets = targets.to(device)
 
-            with torch.amp.autocast(device.type):
-                out_loc, out_dmg = model(pre_imgs, post_imgs)
+        # TENT forward handles the backward pass inside
+        with torch.amp.autocast(device.type):
+            out_loc, out_dmg = tent_model(pre_imgs, post_imgs)
 
-            loc_targets = (targets > 0).long()
-            dmg_targets = targets.long()
-            accumulator.update(out_loc, out_dmg, loc_targets, dmg_targets)
+        loc_targets = (targets > 0).long()
+        dmg_targets = targets.long()
+        accumulator.update(out_loc, out_dmg, loc_targets, dmg_targets)
+        
+        # Reset parameters optionally after each image if you want episodic TENT, 
+        # or keep them updated for sequential TENT. Here we use sequential (default TENT)
 
     metrics = accumulator.compute()
     
-    print("\nEVALUATION RESULTS ON xBD-S12 (Zero-shot)")
+    print("\nEVALUATION RESULTS ON xBD-S12 (TENT)")
     print(f"xView2 Score     : {metrics['xview2_score']:.4f}")
     print(f"F1 Localization  : {metrics['f1_loc']:.4f}")
     print(f"F1 Damage (macro): {metrics['f1_dmg_macro']:.4f}")
-    
     for k in [1, 2, 3, 4]:
         class_name = DAMAGE_CLASS_NAMES[k]
-        f1_val = metrics[f'f1_{class_name}']
-        print(f"  F1 {class_name:<14}: {f1_val:.4f}")
+        print(f"  F1 {class_name:<14}: {metrics[f'f1_{class_name}']:.4f}")
 
 if __name__ == "__main__":
-    evaluate()
+    main()

@@ -1,7 +1,7 @@
 """
-eval_tent.py - Evaluate SiameseUNet with TENT on ida-BD
+eval_tent.py - Evaluate with TENT on ida-BD
 """
-import os, sys, glob, warnings
+import os, sys, glob, yaml, warnings
 import numpy as np
 import torch
 from PIL import Image
@@ -16,10 +16,9 @@ SRC  = os.path.join(ROOT, "src")
 sys.path.insert(0, ROOT)
 sys.path.insert(0, SRC)
 
-from model   import SiameseUNet
-from metrics import MetricAccumulator, DAMAGE_CLASS_NAMES
-from tent    import TENT
-
+from src.models.factory import create_model
+from src.metrics import MetricAccumulator, DAMAGE_CLASS_NAMES
+from src.tent import TENT
 
 class IdaDataset(Dataset):
     def __init__(self, data_dir):
@@ -52,42 +51,63 @@ class IdaDataset(Dataset):
         post_t = torch.from_numpy(post_arr.transpose(2, 0, 1)).float()
         loc_t  = torch.from_numpy((mask_arr > 0).astype(np.int64)).long()
         dmg_t  = torch.from_numpy(mask_arr.astype(np.int64)).long()
+
         return pre_t, post_t, loc_t, dmg_t
 
-
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--checkpoint", type=str, required=True)
-    parser.add_argument("--data_dir",   type=str, default=r"H:\KhoaLuan\data\ida-BD\split\test")
-    parser.add_argument("--lr",         type=float, default=1e-3)
-    parser.add_argument("--steps",      type=int,   default=1)
+    parser.add_argument("--checkpoint", type=str, required=True, help="Path to .pth file")
+    parser.add_argument("--config", type=str, required=True, help="Path to .yaml config")
+    parser.add_argument("--data_dir", type=str, default=r"H:\KhoaLuan\data\ida-BD\split\test")
     args = parser.parse_args()
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Device: {device} | TENT lr={args.lr} steps={args.steps}")
-
-    base_model = SiameseUNet(encoder_name="resnet34", encoder_weights=None).to(device)
-    ckpt = torch.load(args.checkpoint, map_location=device, weights_only=False)
-    base_model.load_state_dict(ckpt["model_state"], strict=False)
-    print("Weights loaded.")
-
-    tent_model = TENT(base_model, lr=args.lr, steps=args.steps)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f"Using device: {device}")
 
     dataset = IdaDataset(args.data_dir)
-    loader  = DataLoader(dataset, batch_size=4, shuffle=False, num_workers=0)
+    loader  = DataLoader(dataset, batch_size=4, shuffle=False, num_workers=2)
     print(f"Total images: {len(dataset)}")
 
-    accumulator = MetricAccumulator()
-    for pre, post, loc_true, dmg_true in tqdm(loader, desc="Evaluating TENT"):
-        pre, post = pre.to(device), post.to(device)
-        loc_true, dmg_true = loc_true.to(device), dmg_true.to(device)
-        loc_pred, dmg_pred = tent_model(pre, post)
-        accumulator.update(loc_pred, dmg_pred, loc_true, dmg_true)
+    with open(args.config) as f:
+        cfg = yaml.safe_load(f)
+    if 'model' in cfg and 'encoder_weights' in cfg['model']:
+        cfg['model']['encoder_weights'] = None
 
-    results = accumulator.compute()
-    print(f"\nEVALUATION RESULTS ON ida-BD (TENT lr={args.lr} steps={args.steps})")
-    print(f"xView2 Score     : {results['xview2_score']:.4f}")
-    print(f"F1 Localization  : {results['f1_loc']:.4f}")
-    print(f"F1 Damage (macro): {results['f1_dmg_macro']:.4f}")
-    for name in DAMAGE_CLASS_NAMES[1:]:
-        print(f"F1 {name:<16}: {results.get('f1_' + name, 0):.4f}")
+    print(f"Creating model from {args.config}...")
+    model = create_model(cfg).to(device)
+
+    print(f"Loading weights from {args.checkpoint}...")
+    ckpt = torch.load(args.checkpoint, map_location=device, weights_only=False)
+    state_dict = ckpt['model_state'] if 'model_state' in ckpt else ckpt
+    state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
+    model.load_state_dict(state_dict)
+
+    print("\n[TENT] Wrapping model with Test-Time Entropy Minimization...")
+    tent_model = TENT(model, lr=1e-3, steps=1)
+
+    accumulator = MetricAccumulator()
+
+    print("\n[TENT] Evaluating on ida-BD with online adaptation...")
+    for pre_imgs, post_imgs, loc_targets, dmg_targets in tqdm(loader, desc="Evaluating TENT"):
+        pre_imgs = pre_imgs.to(device)
+        post_imgs = post_imgs.to(device)
+        loc_targets = loc_targets.to(device)
+        dmg_targets = dmg_targets.to(device)
+
+        with torch.amp.autocast(device.type):
+            out_loc, out_dmg = tent_model(pre_imgs, post_imgs)
+
+        accumulator.update(out_loc, out_dmg, loc_targets, dmg_targets)
+
+    metrics = accumulator.compute()
+    
+    print("\nEVALUATION RESULTS ON ida-BD (TENT)")
+    print(f"xView2 Score     : {metrics['xview2_score']:.4f}")
+    print(f"F1 Localization  : {metrics['f1_loc']:.4f}")
+    print(f"F1 Damage (macro): {metrics['f1_dmg_macro']:.4f}")
+    for k in [1, 2, 3, 4]:
+        class_name = DAMAGE_CLASS_NAMES[k]
+        print(f"  F1 {class_name:<14}: {metrics[f'f1_{class_name}']:.4f}")
+
+if __name__ == "__main__":
+    main()
