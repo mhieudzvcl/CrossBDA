@@ -1,4 +1,4 @@
-"""
+﻿"""
 eval_tent.py - Evaluate with TENT on ida-BD
 """
 import os, sys, glob, yaml, warnings
@@ -83,7 +83,7 @@ def main():
     model.load_state_dict(state_dict)
 
     print("\n[TENT] Wrapping model with Test-Time Entropy Minimization...")
-    tent_model = TENT(model, lr=1e-3, steps=1)
+    tent_model = TENT(model, lr=1e-5, steps=1)  # Fixed: lr=1e-3 was too large, matches README
 
     accumulator = MetricAccumulator()
 
@@ -111,3 +111,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

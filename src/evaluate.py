@@ -1,4 +1,4 @@
-﻿"""
+"""
 evaluate.py - Evaluate trained model on xBD test or holdout split
 Usage:
     python src/evaluate.py --checkpoint experiments/baseline_resnet34/checkpoints/best_model.pth --split test
@@ -42,7 +42,10 @@ def evaluate(cfg_path, ckpt_path, split='test'):
     state_dict = {k.replace('module.', ''): v for k, v in ckpt['model_state'].items()}
     model.load_state_dict(state_dict)
     model.eval()
-    print(f'Loaded from epoch {ckpt["epoch"]} (train score: {ckpt["score"]:.4f})')
+    if "epoch" in ckpt:
+        print(f'Loaded from epoch {ckpt["epoch"]} (train score: {ckpt.get("score", 0):.4f})')
+    else:
+        print(f'Loaded weights from {ckpt_path}')
 
     accumulator = MetricAccumulator()
     with torch.no_grad():

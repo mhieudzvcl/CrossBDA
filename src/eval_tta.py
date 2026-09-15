@@ -26,8 +26,9 @@ SRC  = os.path.join(ROOT, "src")
 sys.path.insert(0, ROOT)
 sys.path.insert(0, SRC)
 
-from model   import SiameseUNet
-from metrics import MetricAccumulator, DAMAGE_CLASS_NAMES
+import yaml
+from src.models.factory import create_model
+from src.metrics import MetricAccumulator, DAMAGE_CLASS_NAMES
 
 
 class IdaDataset(Dataset):
@@ -111,15 +112,24 @@ def tta_predict(model, pre, post):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--checkpoint", type=str, required=True)
+    parser.add_argument("--config",     type=str, default="configs/baseline.yaml", help="Model config yaml")
     parser.add_argument("--data_dir",   type=str, default=r"H:\KhoaLuan\data\ida-BD\split\test")
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")
 
-    model = SiameseUNet(encoder_name="resnet34", encoder_weights=None).to(device)
+    # Fixed: Load architecture from config instead of hardcoding ResNet34
+    config_path = args.config if hasattr(args, "config") else "configs/baseline.yaml"
+    with open(config_path) as f:
+        cfg = yaml.safe_load(f)
+    if "model" in cfg and "encoder_weights" in cfg["model"]:
+        cfg["model"]["encoder_weights"] = None
+    model = create_model(cfg).to(device)
     ckpt  = torch.load(args.checkpoint, map_location=device, weights_only=False)
-    model.load_state_dict(ckpt["model_state"], strict=False)
+    state_dict = ckpt["model_state"] if "model_state" in ckpt else ckpt
+    state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
+    model.load_state_dict(state_dict, strict=False)
     model.eval()
     print("Weights loaded.")
 

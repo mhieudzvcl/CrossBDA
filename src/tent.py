@@ -11,18 +11,21 @@ def configure_model(model):
     model.train()
     model.requires_grad_(False)
     for m in model.modules():
+        # Update both BatchNorm2d (for CNN) and LayerNorm (for ViT/ScaleMAE)
         if isinstance(m, nn.BatchNorm2d):
             m.requires_grad_(True)
             m.track_running_stats = False
             m.running_mean = None
             m.running_var = None
+        elif isinstance(m, nn.LayerNorm):
+            m.requires_grad_(True)
     return model
 
 
 def collect_params(model):
     params, names = [], []
     for nm, m in model.named_modules():
-        if isinstance(m, nn.BatchNorm2d):
+        if isinstance(m, (nn.BatchNorm2d, nn.LayerNorm)):
             for np_, p in m.named_parameters():
                 if np_ in ["weight", "bias"]:
                     params.append(p)
